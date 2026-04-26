@@ -5,7 +5,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
-import androidx.appcompat.app.AppCompActivity
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -24,23 +25,30 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvScoreSummary: TextView
     private lateinit var btnRestart: Button
 
-    //Flashcard questions
+    //Flashcard questions: Pair(Question, isMyth)
     private val flashcards = listOf(
-        Pair("")
+        Pair("Public Wi-Fi is always safe to use for banking.", true),
+        Pair("Two-factor authentication adds an extra layer of security.", false),
+        Pair("Using the same password for all accounts is a good practice.", true),
+        Pair("Hackers only target large corporations.", true),
+        Pair("Updating software helps fix security vulnerabilities.", false),
+        Pair("Placing your alarm clock across the room assists with getting out of bed in the morning", false),
+        Pair("Placing a wooden spoon(uphinini) across the pot when boiling starchy foods prevent the water from spilling over", true),
+        Pair("Putting toothpaste on mosquito bites stops them from itching", false),
+        Pair("To pull a tightly plugged cork out of wine/champagne bottle jam a nail into it and pull on it to pull the cork out along with it", true),
+        Pair("Turning your phone to airplane mode will help it charge faster", false)
     )
 
     private var index = 0
-    private var lastAnswerIsMyth: Boolean? = null
-    private val userAnswers = MutableList(flashcards.size) {null as Boolean?}
-
+    private val userAnswers = MutableList(flashcards.size) { null as Boolean? }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.id.activity_main)
+        setContentView(R.layout.activity_main)
 
         welcomeLayout = findViewById(R.id.welcomeLayout)
         cardLayout = findViewById(R.id.cardLayout)
-        scoreLayout=findViewById(R.id.scoreLayout)
+        scoreLayout = findViewById(R.id.scoreLayout)
 
         tvCardText = findViewById(R.id.tvCardText)
         btnMyth = findViewById(R.id.btnMyth)
@@ -52,19 +60,19 @@ class MainActivity : AppCompatActivity() {
         tvScoreSummary = findViewById(R.id.tvScoreSummary)
         btnRestart = findViewById(R.id.btnRestart)
 
-        btnMyth.setOnClickListener { onAnswer(true) }
-        btnHack.setOnClickListener { onAnswer(false)}
-        btnNext.setOnClickListener { onNext() }
-
-        findViewById<Button>(R.id.btnRestart).setOnClickListener {
+        findViewById<Button>(R.id.btnStart).setOnClickListener {
             startQuiz()
         }
+
+        btnMyth.setOnClickListener { onAnswer(true) }
+        btnHack.setOnClickListener { onAnswer(false) }
+        btnNext.setOnClickListener { onNext() }
 
         btnRestart.setOnClickListener {
             restart()
         }
-         showWelcome()
 
+        showWelcome()
     }
 
     private fun showWelcome() {
@@ -72,52 +80,47 @@ class MainActivity : AppCompatActivity() {
         cardLayout.visibility = View.GONE
         scoreLayout.visibility = View.GONE
     }
-    private fun startQuiz(){
+
+    private fun startQuiz() {
         index = 0
-        for (i in userAnswers.indices) userAnswers[i] = null
+        userAnswers.fill(null)
         showCard()
     }
 
-    private fun showCard(){
+    private fun showCard() {
         welcomeLayout.visibility = View.GONE
         cardLayout.visibility = View.VISIBLE
         scoreLayout.visibility = View.GONE
 
         val (text, _) = flashcards[index]
         tvCardText.text = text
-        tvProgress.text = "Card ${index + 1} / ${flashcards.size}"
+        tvProgress.text = getString(R.string.progress_text, index + 1, flashcards.size)
         clearAnswerButtons()
         btnNext.isEnabled = false
     }
 
-    private fun clearAnswerButtons(){
-        btnMyth.setBackgroundColor(getColor(android.R.color.darker_gray))
-        btnHack.setBackgroundColor(getColor(android.R.color.darker_gray))
-        lastAnswerIsMyth = null
+    private fun clearAnswerButtons() {
+        btnMyth.setBackgroundColor(Color.LTGRAY)
+        btnHack.setBackgroundColor(Color.LTGRAY)
     }
 
-    private fun onAnswer(isMyth: Boolean){
-        //record of answer selections
+    private fun onAnswer(isMyth: Boolean) {
         userAnswers[index] = isMyth
-        lastAnswerIsMyth = isMyth
 
-        //visual feedback
-        if (isMyth){
-            btnMyth.setBackgroundColor(Color.parseColor("#2196F3"))//blue
-            btnHack.setBackgroundColor(getColor(android.R.color.darker_gray))
+        if (isMyth) {
+            btnMyth.setBackgroundColor("#2196F3".toColorInt()) // Blue
+            btnHack.setBackgroundColor(Color.LTGRAY)
         } else {
-            btnHack.setBackgroundColor(Color.parseColor("#4CAF50")) //green
-            btnMyth.setBackgroundColor(getColor(android.R.color.darker_gray))
+            btnHack.setBackgroundColor("#4CAF50".toColorInt()) // Green
+            btnMyth.setBackgroundColor(Color.LTGRAY)
         }
 
         btnNext.isEnabled = true
     }
 
     private fun onNext() {
-        //validation of user input
-        if (userAnswers[index]== null) return
+        if (userAnswers[index] == null) return
 
-        //move on to the next or finish if enterd
         if (index < flashcards.size - 1) {
             index++
             showCard()
@@ -126,27 +129,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showScore(){
+    private fun showScore() {
         welcomeLayout.visibility = View.GONE
         cardLayout.visibility = View.GONE
         scoreLayout.visibility = View.VISIBLE
 
         val results = flashcards.mapIndexed { i, pair ->
             val correctIsMyth = pair.second
-
-            //"Myth"= false
-            //"Hack"= true
             val userAnswer = userAnswers[i]
-            val userCorrect = when (userAnswer) {
-                null -> false
-                true -> !pair.second
-                false -> pair.second
-            }
+            val userCorrect = userAnswer == correctIsMyth
             Pair(i + 1, userCorrect)
         }
 
         val correctCount = results.count { it.second }
-        tvScoreSummary.text = "Your score is $correctCount / ${flashcards.size}"
+        val scoreText = getString(R.string.score_summary, correctCount, flashcards.size)
+        val message = if (correctCount < 5) {
+            getString(R.string.score_low)
+        } else {
+            getString(R.string.score_high)
+        }
+        
+        tvScoreSummary.text = getString(R.string.score_summary_with_msg, scoreText, message)
 
         rvScore.layoutManager = LinearLayoutManager(this)
         rvScore.adapter = ScoreAdapter(flashcards.map { it.first }, results.map { it.second })
